@@ -9,14 +9,13 @@ Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-```
 
 Ensure Poppler is installed and accessible in your system path.
 
 Run the app:
 ```bash
 python pdf_extractor.pyw
-```
+
 
 ## Features
 
@@ -31,3 +30,7 @@ python pdf_extractor.pyw
 - Python 3.8+
 - Poppler (required for `pdf2image`)
 - See [Installation](#installation) for details
+
+## Installation
+
+1. Install dependencies:

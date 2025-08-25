@@ -8,6 +8,9 @@ import os
 import re
 import threading
 import base64
+import gc
+import shutil
+import tempfile
 from io import BytesIO
 from typing import List, Set
 
@@ -75,6 +78,7 @@ class PDFExtractorApp:
         self.last_selected_page: int = -1  # 最後に選択されたページ（範囲選択用）
         self.reader: PdfReader = None
         self.thumbnails: List[Image.Image] = []
+        self.temp_dirs: List[str] = []  # 一時ディレクトリのリスト
         
         # UI コンポーネント
         self.pdf_path_text = ft.Text("PDFファイルが選択されていません", color=ft.Colors.GREY_600)
@@ -122,6 +126,48 @@ class PDFExtractorApp:
             color_scheme_seed=ft.Colors.BLUE,
             use_material3=True
         )
+    
+    def cleanup_resources(self):
+        """前のPDFのリソースをクリア"""
+        try:
+            print(f"DEBUG: リソースクリーンアップ開始")
+            
+            # 既存のPdfReaderをクリア
+            if self.reader:
+                self.reader = None
+                print(f"DEBUG: PdfReaderクリア完了")
+            
+            # サムネイル画像をクリア
+            if self.thumbnails:
+                for img in self.thumbnails:
+                    if hasattr(img, 'close'):
+                        try:
+                            img.close()
+                        except:
+                            pass
+                self.thumbnails.clear()
+                print(f"DEBUG: サムネイル画像クリア完了")
+            
+            # 一時ディレクトリを削除
+            for temp_dir in self.temp_dirs:
+                try:
+                    if os.path.exists(temp_dir):
+                        shutil.rmtree(temp_dir)
+                        print(f"DEBUG: 一時ディレクトリ削除完了 - {temp_dir}")
+                except Exception as e:
+                    print(f"DEBUG: 一時ディレクトリ削除失敗 - {temp_dir}: {e}")
+            self.temp_dirs.clear()
+            
+            # 選択状態をクリア
+            self.selected_pages.clear()
+            self.last_selected_page = -1
+            
+            # ガベージコレクションを実行（新しいPDFを開く時のみ）
+            gc.collect()
+            print(f"DEBUG: ガベージコレクション完了")
+            
+        except Exception as e:
+            print(f"DEBUG: リソースクリーンアップエラー - {type(e).__name__}: {e}")
     
     def build_ui(self):
         """UIの構築"""
@@ -319,6 +365,9 @@ class PDFExtractorApp:
         try:
             print(f"DEBUG: PDF読み込み開始 - {path}")
             print(f"DEBUG: ファイル存在確認 - {os.path.exists(path)}")
+            
+            # 前のPDFのリソースをクリア
+            self.cleanup_resources()
             
             # PDF読み込み
             reader = PdfReader(path)
@@ -701,8 +750,8 @@ class PDFExtractorApp:
             print(f"DEBUG: サムネイル数 - {len(self.thumbnails)}")
             
             # 一時ディレクトリの準備
-            import tempfile
             temp_dir = tempfile.mkdtemp()
+            self.temp_dirs.append(temp_dir)  # リストに追加して後で削除できるように
             print(f"DEBUG: 一時ディレクトリ - {temp_dir}")
             
             # 全てのサムネイルを画像表示

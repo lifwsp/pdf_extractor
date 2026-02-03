@@ -16,6 +16,7 @@ from typing import List, Set
 
 import flet as ft
 from pypdf import PdfReader, PdfWriter
+from pypdf.errors import DependencyError
 from pdf2image import convert_from_path
 from PIL import Image
 
@@ -372,9 +373,10 @@ class PDFExtractorApp:
             # PDF読み込み
             reader = PdfReader(path)
             print(f"DEBUG: PdfReader作成成功")
-            if reader.is_encrypted:
-                raise RuntimeError('暗号化されたPDFは扱えません')
-            
+
+            # 暗号化PDFもcryptographyパッケージがあれば処理可能
+            # パスワード保護されている場合はPdfReaderが例外を投げる
+
             self.reader = reader
             total_pages = len(reader.pages)
             print(f"DEBUG: 総ページ数 - {total_pages}")
@@ -449,6 +451,16 @@ class PDFExtractorApp:
             self.update_status(f'PDF読み込み完了 ({total_pages}ページ)')
             print(f"DEBUG: PDF読み込み処理完了")
             
+        except DependencyError as e:
+            self.update_status('PDF読み込み失敗')
+            print(f"DEBUG: PDF読み込みエラー - DependencyError: {str(e)}")
+            error_msg = (
+                "暗号化されたPDFの処理に必要なパッケージが不足しています。\n\n"
+                "以下のコマンドでインストールしてください：\n"
+                "pip install cryptography>=3.1"
+            )
+            self.show_error('依存パッケージ不足', error_msg)
+            self.reader = None
         except Exception as e:
             self.update_status('PDF読み込み失敗')
             print(f"DEBUG: PDF読み込みエラー - {type(e).__name__}: {str(e)}")
